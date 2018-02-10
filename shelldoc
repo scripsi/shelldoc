@@ -1,0 +1,466 @@
+#!/bin/sh
+
+#.NAME        shelldoc
+#.SUMMARY     Shellscript Documentation System
+#.AUTHOR      Douglas Reed
+#.DATE        March 2014
+#.VERSION     0.3
+#.MANSECTION  1
+#.MANGROUP    Text Processing
+#.
+#.SYNOPSIS
+#.   shelldoc [-t | -a *1-9* | -s]
+#.
+#. Typical Usage
+#.   shelldoc < *scriptfile* > *scriptdocumentation.rst*
+#.
+#.   shelldoc -t < *scriptfile* > *scriptfile-with-shelldoc-template*
+#. 
+#.   shelldoc -a *n* < *scriptfile* > *appendix-n*
+#.
+#.   shelldoc -s < *scriptfile* > *scriptfile-without-shelldoc*
+#. 
+
+# Utility functions start here
+
+# Wraps a shell script with copperplate documentation
+doaddtemplate () {
+# check if first line is a shebang
+  read inputline
+  if [ "${inputline%${inputline#??}}" = "\#!" ]
+  then
+    echo "$inputline"
+    inputline=""
+  fi
+# now insert top of template
+  echo "#.NAME        scriptname"
+  echo "#.SUMMARY     one line description of script"
+  echo "#.AUTHOR      Author Name"
+  echo "#.DATE        Jan 2000"
+  echo "#.VERSION     0.1"
+  echo "#.MANSECTION  1"
+  echo "#.MANGROUP    Text Processing"
+  echo "#."
+  echo "#.SYNOPSIS"
+  echo "#.  scriptname [args]"
+  echo "#."
+# Then echo out the rest of the script
+  if [ -n "$inputline" ]
+  then
+    echo "$inputline"
+  fi
+  while read inputline
+  do
+    echo "$inputline"
+  done
+# finally append bottom of template
+  echo "#.DESCRIPTION"
+  echo "#. Full description of script usage"
+  echo "#."
+  echo "#.OPTIONS"
+  echo "#.-o, --option"
+  echo "#.- option description (note the extra '-' at the beginning of the line)"
+  echo "#."
+  echo "#.EXAMPLES"
+  echo "#. Examples of usage"
+  echo "#."
+  echo "#.SEE_ALSO"
+  echo "#. Related man pages"
+}
+
+# Utility function to emit the text of appendix n
+doemitappendix () {
+  # Reset IFS to stop read from stripping leading spaces
+  OLDIFS="$IFS"
+  IFS=$'\n'
+  # Scan through the input, only emitting lines that begin '#.n '
+  while read inputline
+  do
+    if [ "${inputline%${inputline#????}}" = "#.${1} " ]
+    then
+      echo "${inputline#????}"
+    fi                      
+  done
+  # Put IFS back to normal
+  IFS="$OLDIFS"
+}
+
+# Utility function to strip shelldoc comments from the input
+dostripshelldoc () {
+  # Reset IFS to stop read from stripping leading spaces
+  OLDIFS="$IFS"
+  IFS=$'\n'
+  # scan through the input, ignoring lines starting with a shedot and emitting the rest
+  while read inputline
+  do
+    if [ "${inputline%${inputline#??}}" != "#." ]
+    then
+      echo "$inputline"
+    fi
+  done
+  # Put IFS back to normal
+  IFS="$OLDIFS"
+}
+
+# End of utility functions
+
+# Startup and options processing
+
+# Global variables
+# declare -i optionindent=0
+
+# Turn on extended globbing for some of the text processing below
+# shopt -s extglob
+
+# Process command-line options
+while getopts :tsha: opt
+do
+  case $opt in
+  t)   doaddtemplate
+       exit 0
+       ;;
+  s)   dostripshelldoc
+       exit 0
+       ;;     
+  a)   case $OPTARG in
+       [1-9] )  doemitappendix $OPTARG
+                exit 0
+                ;;
+       * )      echo "$0: invalid argument $OPTARG for option -a --- use -h for help" >&2
+                exit 1
+                ;;
+       esac
+       ;;
+  h)   echo " "
+       echo "============== shelldoc============="
+       echo "| Shellscript Documentation System |"
+       echo "===================================="
+       echo " "
+       echo "Usage: $0 [-t] [-a 1-9 ] < infile > outfile"
+       echo " "
+       echo "For full documentation: $0 < $0"
+       echo " "
+       exit 0
+       ;;
+  '?') echo "$0: invalid option -$OPTARG --- use -h for help" >&2
+       exit 1
+       ;;
+   esac
+done
+
+shift $((OPTIND - 1))
+
+# The core processing loop (perhaps I should learn sed...)
+while read inputline
+do
+  # Check the first 3 characters of the line
+  case "$inputline" in
+    # If the line starts #. and a letter then it must be a section header
+    \#.[a-zA-Z]* )
+      # Extract the section name and convert it to uppercase 
+      sectionname="${inputline%% *}"
+      sectionuname=$( echo "${sectionname#\#.}" | tr 'a-z' 'A-Z' )
+      # Extract the remaining data from the line and trim leading space
+      sectiondata="${inputline#$sectionname}"
+      sectiondata=$( echo "$sectiondata" | sed 's/^[ \t]*//' )
+      # Check for special sections and format accordingly
+      case "$sectionuname" in
+        "NAME" )
+          sectiondelimiter=
+          i=0
+          while [ $i -lt "${#sectiondata}" ]
+          do
+            sectiondelimiter="=$sectiondelimiter"
+            i=$((i+1))
+          done
+          echo
+          echo "$sectiondelimiter"
+          echo "$sectiondata"
+          echo "$sectiondelimiter"
+          echo
+          ;;
+        "SUMMARY" )
+          sectiondelimiter=
+          i=0
+          while [ $i -lt "${#sectiondata}" ]
+          do
+            sectiondelimiter="-$sectiondelimiter"
+            i=$((i+1))
+          done
+          echo
+          echo "$sectiondelimiter"
+          echo "$sectiondata"
+          echo "$sectiondelimiter"
+          echo
+          ;;
+        "AUTHOR" )
+          echo ":Author: $sectiondata"
+          ;;
+        "DATE" )
+          echo ":Date: $sectiondata"
+          ;;
+        "VERSION" )
+          echo ":Version: $sectiondata"
+          ;;
+        "MANSECTION" )
+          echo ":Manual Section: $sectiondata"
+          ;;
+        "MANGROUP" )
+          echo ":Manual group: $sectiondata"
+          ;;
+        * )
+          sectiondelimiter=
+          i=0
+          while [ $i -lt "${#sectionuname}" ]
+          do
+            sectiondelimiter="~$sectiondelimiter"
+            i=$((i+1))
+          done
+          echo
+          # replace underscores in section name with spaces
+          echo "$sectionuname"|sed 's/_/ /g'
+          echo "$sectiondelimiter"
+          if [ -n $sectiondata ]
+          then
+            echo " $sectiondata"
+          fi
+          ;;
+        esac
+    ;;
+    # If the line starts with #.- it must be an option definition
+    \#.-* )
+      case "$inputline" in
+        # If the line starts with #.- and a letter, hyphen or question mark, it must be
+        # the option itself
+        \#.-[a-zA-Z\?-]* )
+          # Split out the components of the line
+          optionname="${inputline%% *}"
+          linedata="${inputline#$optionname}"
+          # Trim the #. off the option name
+          optionname="${optionname#\#.}"
+          optionlength=${#optionname}
+          # In the reStructuredText definition, options must be separated from their 
+          # descriptions by at least 2 spaces, hence the indent for subsequent lines
+          # is the length of the option + 2
+          optionindent=$(( optionlength + 2 ))
+          # Emit the option name, two spaces, and then the rest of the line, trimmed of
+          # any other leading white space
+          echo "$optionname"  $( echo "$linedata" | sed 's/^[ \t]*//' )
+        ;;
+        # If the line starts with #.- and whitespace it must be continuation of the option
+        # definition, so we need to pad with the right amount of space
+        \#.-[[:blank:]]* )
+          linedata="${inputline#\#.-}"
+          # trim off leading white space
+          linedata=$( echo "$linedata" | sed 's/^[ \t]*//' )
+          # pad with the right amount of space
+          i=0
+          while [ $i -lt $optionindent ]
+          do
+            linedata=" $linedata"
+            i=$((i+1))
+          done
+          echo "$linedata"
+        ;;
+      esac
+    ;;
+    # If the line starts with #. and nothing else or whitespace it must be continuation
+    \#.[[:blank:]]* )
+      echo "${inputline#\#. }"
+    ;;
+    \#. )
+      echo
+    ;;
+    # Ignore anything else
+    * )
+    ;;
+  esac
+done
+
+#.DESCRIPTION
+#. The shelldoc system provides a simple way to embed user documentation into Unix shell
+#. scripts. Shelldoc searches for specially formatted comments in text input (usually a 
+#. Unix script file) on STDIN which are then emitted as the user documentation in
+#. reStructuredText format on STDOUT. All other code and standard comments within the
+#. source text are quietly ignored.
+#.
+#. reStructuredText is a very lightweight form of markup that does not interfere with
+#. the human readability of the text. Filters exist to convert reStructuredText into
+#. html, latex (and on to PDF), and man format (see http://docutils.sourceforge.net).
+#. Thus the same shelldoc documentation comments
+#. within a script can be extracted into a text file, a web page, a man page or a PDF file,
+#. or all four, covering all the main forms of electronic documentation.
+#.
+#. The aim here is to produce user documentation, so the syntax is based around the common
+#. sections used in man(1) pages. The full syntax is described the SHELLDOC SYNTAX section
+#. below. Lines are processed in the order in which they appear at STDIN. This means that
+#. the order of documentation comments in the source text is important, and
+#. allows the author to control the layout of the resulting documentation.
+#.
+#. The shelldoc script file also serves as "feature-complete" test of the shelldoc system and
+#. an example for usage of all features of the shelldoc syntax.
+#.
+#. Just do:
+#.
+#.   ``shelldoc < shelldoc``
+#.
+#.OPTIONS
+#. The script can be used with the following options:
+#.
+#.-t  Wraps an existing script with template documentation. In this mode, when
+#.-    passed some text on STDIN, it first reads the first line to check if it is a 'shebang'
+#.-    line (eg #! /bin/sh), and if so it echos this to STDOUT. It then emits a template set
+#.-    of the most important documentation parameters before echoing the rest of the input.
+#.-    Finally it appends the remaining documentation template to the output. The end result
+#.-    should be a working version of the original script with added documentation in the 
+#.-    correct form, which you can then edit to your heart's content.
+#.
+#.-s
+#.- Strips out all shelldoc lines from a script. In this mode, when passed some text
+#.- on STDIN, it emits to STDOUT only lines which do not begin with '#.', thus creating
+#.- a 'clean' script.
+#.
+#.-a *n*
+#.- Emits appendix *n* from a script, where *n*=1-9. In this mode, when passed some text
+#.- on STDIN, it emits only lines beginning with '#.' followed by *n* and a space. This
+#.- allows you to include other documentation text files as "appendices" to the script.
+#.- For example, I usually include the version history as appendix 1 and the license as 
+#.- appendix 2. See SHELLDOC SYNTAX below for more information.
+#.
+#.-h
+#.- Prints a short usage summary and exits.
+#.
+#.SHELLDOC_SYNTAX
+#. The shelldoc syntax is designed to be as simple and flexible as possible. All shelldoc
+#. lines begin with '#.' (ie a hash/pound sign followed by a full stop). Only lines
+#. beginning with this 'shedot' marker will be processed as documentation, anything
+#. else is ignored, so you can still include standard comments in a script, which will not be
+#. included in the documentation.
+#.
+#. A shedot that is immediately followed by a letter is considered to be a new section heading.
+#. The text between the shedot and the first space or new line is considered to be the 
+#. heading text. This will be capitalised and formatted as a heading in the output. Any text
+#. folowing the first space will be interpreted as standard body text. If you want a
+#. multi-word heading then separate the words of the heading with underline characters.
+#. A shedot that is followed by a space or a new line is interpreted as standard body
+#. text. So, for example::
+#.
+#.   #.Helpful_Description This is where we describe how the foo script works.
+#.   #. It uses a highly sophisticated method to turn any foo on STDIN into properly
+#.   #. formatted bar on STDOUT.
+#.
+#. becomes::
+#.
+#.   HELPFUL DESCRIPTION
+#.       This is where we describe how the foo script works. It uses a highly
+#.       sophisticated method to turn any foo on STDIN into properly formatted
+#.       bar on STDOUT.
+#.
+#. There are a few headings that are treated differently. These are essential if the
+#. eventual target will be a man page, but may also be desirable for other target formats.
+#. These special headings are::
+#. 
+#.   #.NAME *scriptname*
+#.   #.SUMMARY *one line description*
+#.   #.AUTHOR *author name*
+#.   #.DATE *date last updated*
+#.   #.VERSION *version number*
+#.   #.MANSECTION *manual section (1-8)*
+#.   #.MANGROUP *manual group description"
+#.
+#. Use the ``shelldoc -t`` option (see above) to add a template of the correct headings to
+#. your script.
+#.
+#. Option descriptions have to be specially formatted to ensure the correct indentation. An
+#. option begins with '#.-' and a letter or hyphen. Any text after the first space is
+#. interpreted as the option description. Subsequent lines beginning '#.-' and a space
+#. are considered to be a continuation of the option description. For example::
+#. 
+#.   #.-p,--piffle Obfuscates the foo on STDIN so that it appears as complete
+#.   #.- gibberish on STDOUT.
+#.
+#. becomes::
+#. 
+#.   -p,--piffle  Obfuscates the foo on STDIN so that it appears
+#.                as complete gibberish on STDOUT.
+#.
+#. A shedot that is immediately followed by a digit and a space is considered to be an
+#. "appendix" - the text of an additional file that can be extracted using the -a*n* shelldoc
+#. option. This an easy way of including additonal documentation such as a version history,
+#. license info, or a README file in a script. You can then use successive calls to shelldoc
+#. to generate the entire user documentation for a project from a single script file. For
+#. example::
+#.
+#.   <somescript>
+#.   ...
+#.   #.1 0.1
+#.   #.1  Initial bug-ridden release
+#.   #.1 0.2
+#.   #.1  Bugs fixed - First stable release
+#.   #.1 0.3
+#.   #.1  Added lots of new features
+#.   #.1  Created lots of new bugs (sigh)   
+#.   #.2 Copyright 2008 Joe Blogs
+#.   #.2  
+#.   #.2 Please pay me lots of money whenever you so much as breath on this script
+#.   #.2 But, er, don't sue me if blows up your computer and destroys all life as we know it
+#.   ...
+#. 
+#. ::
+#.   shelldoc -a1 < somescript > versions.txt
+#.   shelldoc -a2 < somescript > license.txt
+#.
+#. You can use most reStructuredText commands to include special formatting in any shelldoc
+#. text. The most useful of these are:
+#.
+#.  + \\*emphasis\\* becomes *emphasis*
+#.  + \\**strong emphasis\\** becomes **strong emphasis**
+#.  + \\``inline literal\\`` becomes ``inline literal``
+#.  + An indented block of text preceeded by :: becomes a code block
+#.
+#. See the reStructuredText definition documents for more on these and other formatting tricks.
+#.
+#.EXAMPLES
+#. The following processes the foo.sh script and produces a man page as foo.1
+#. 
+#.  ``cat foo.sh | shelldoc | rst2man.py > foo.1``
+#.
+#. The following processes the bar.sh script and produces a web page as bar.html
+#.
+#.  ``cat bar.sh | shelldoc | rst2html.py > bar.html``
+#.
+#.SEE_ALSO
+#. docutils(1)
+#. 
+
+#.1 VERSION HISTORY
+#.1 0.3 - 20140307
+#.1  Spit and polish before releasing on GitHub
+#.1 0.2 - 20080624
+#.1  Added appendix function for including other text files as part of the documentation set
+#.1  Used new appendix feature to add version history and license
+#.1 0.1 - 20080422
+#.1  Initial release
+
+#.2 LICENSE
+#.2     
+#.2 Copyright (c) 2014 Douglas Reed
+#.2     
+#.2 Permission is hereby granted, free of charge, to any person obtaining a copy
+#.2 of this software and associated documentation files (the "Software"), to deal
+#.2 in the Software without restriction, including without limitation the rights
+#.2 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+#.2 copies of the Software, and to permit persons to whom the Software is
+#.2 furnished to do so, subject to the following conditions:
+#.2     
+#.2 The above copyright notice and this permission notice shall be included in
+#.2 all copies or substantial portions of the Software.
+#.2     
+#.2 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+#.2 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+#.2 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+#.2 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+#.2 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+#.2 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+#.2 THE SOFTWARE.
+
