@@ -1,5 +1,14 @@
 #!/bin/sh
 
+#                  __
+#                 ▓#.▓▒
+#                ▓▓▓▓▒▒▒▒
+#                ▓▓▓
+#   ___/▓▓▓▓▓▓▓▒▒   ▏
+#  <           ▒▒   ▏
+#   \ shelldoc  ▒  /
+# ~~~~~~~~~~~~~~~~~~~~~~~
+
 #.NAME        shelldoc
 #.SUMMARY     Shellscript Documentation System
 #.AUTHOR      Douglas Reed
@@ -15,11 +24,11 @@
 #.   shelldoc < *scriptfile* > *scriptdocumentation.rst*
 #.
 #.   shelldoc -t < *scriptfile* > *scriptfile-with-shelldoc-template*
-#. 
+#.
 #.   shelldoc -a *n* < *scriptfile* > *appendix-n*
 #.
 #.   shelldoc -s < *scriptfile* > *scriptfile-without-shelldoc*
-#. 
+#.
 
 # Utility functions start here
 
@@ -79,7 +88,7 @@ doemitappendix () {
     if [ "${inputline%${inputline#????}}" = "#.${1} " ]
     then
       echo "${inputline#????}"
-    fi                      
+    fi
   done
   # Put IFS back to normal
   IFS="$OLDIFS"
@@ -121,7 +130,7 @@ do
        ;;
   s)   dostripshelldoc
        exit 0
-       ;;     
+       ;;
   a)   case $OPTARG in
        [1-9] )  doemitappendix $OPTARG
                 exit 0
@@ -157,7 +166,7 @@ do
   case "$inputline" in
     # If the line starts #. and a letter then it must be a section header
     \#.[a-zA-Z]* )
-      # Extract the section name and convert it to uppercase 
+      # Extract the section name and convert it to uppercase
       sectionname="${inputline%% *}"
       sectionuname=$( echo "${sectionname#\#.}" | tr 'a-z' 'A-Z' )
       # Extract the remaining data from the line and trim leading space
@@ -239,7 +248,7 @@ do
           # Trim the #. off the option name
           optionname="${optionname#\#.}"
           optionlength=${#optionname}
-          # In the reStructuredText definition, options must be separated from their 
+          # In the reStructuredText definition, options must be separated from their
           # descriptions by at least 2 spaces, hence the indent for subsequent lines
           # is the length of the option + 2
           optionindent=$(( optionlength + 2 ))
@@ -279,7 +288,7 @@ done
 
 #.DESCRIPTION
 #. The shelldoc system provides a simple way to embed user documentation into Unix shell
-#. scripts. Shelldoc searches for specially formatted comments in text input (usually a 
+#. scripts. Shelldoc searches for specially formatted comments in text input (usually a
 #. Unix script file) on STDIN which are then emitted as the user documentation in
 #. reStructuredText format on STDOUT. All other code and standard comments within the
 #. source text are quietly ignored.
@@ -312,7 +321,7 @@ done
 #.-    line (eg #! /bin/sh), and if so it echos this to STDOUT. It then emits a template set
 #.-    of the most important documentation parameters before echoing the rest of the input.
 #.-    Finally it appends the remaining documentation template to the output. The end result
-#.-    should be a working version of the original script with added documentation in the 
+#.-    should be a working version of the original script with added documentation in the
 #.-    correct form, which you can then edit to your heart's content.
 #.
 #.-s
@@ -324,7 +333,7 @@ done
 #.- Emits appendix *n* from a script, where *n*=1-9. In this mode, when passed some text
 #.- on STDIN, it emits only lines beginning with '#.' followed by *n* and a space. This
 #.- allows you to include other documentation text files as "appendices" to the script.
-#.- For example, I usually include the version history as appendix 1 and the license as 
+#.- For example, I usually include the version history as appendix 1 and the license as
 #.- appendix 2. See SHELLDOC SYNTAX below for more information.
 #.
 #.-h
@@ -338,7 +347,7 @@ done
 #. included in the documentation.
 #.
 #. A shedot that is immediately followed by a letter is considered to be a new section heading.
-#. The text between the shedot and the first space or new line is considered to be the 
+#. The text between the shedot and the first space or new line is considered to be the
 #. heading text. This will be capitalised and formatted as a heading in the output. Any text
 #. folowing the first space will be interpreted as standard body text. If you want a
 #. multi-word heading then separate the words of the heading with underline characters.
@@ -359,7 +368,7 @@ done
 #. There are a few headings that are treated differently. These are essential if the
 #. eventual target will be a man page, but may also be desirable for other target formats.
 #. These special headings are::
-#. 
+#.
 #.   #.NAME *scriptname*
 #.   #.SUMMARY *one line description*
 #.   #.AUTHOR *author name*
@@ -375,12 +384,12 @@ done
 #. option begins with '#.-' and a letter or hyphen. Any text after the first space is
 #. interpreted as the option description. Subsequent lines beginning '#.-' and a space
 #. are considered to be a continuation of the option description. For example::
-#. 
+#.
 #.   #.-p,--piffle Obfuscates the foo on STDIN so that it appears as complete
 #.   #.- gibberish on STDOUT.
 #.
 #. becomes::
-#. 
+#.
 #.   -p,--piffle  Obfuscates the foo on STDIN so that it appears
 #.                as complete gibberish on STDOUT.
 #.
@@ -399,13 +408,13 @@ done
 #.   #.1  Bugs fixed - First stable release
 #.   #.1 0.3
 #.   #.1  Added lots of new features
-#.   #.1  Created lots of new bugs (sigh)   
+#.   #.1  Created lots of new bugs (sigh)
 #.   #.2 Copyright 2008 Joe Blogs
-#.   #.2  
+#.   #.2
 #.   #.2 Please pay me lots of money whenever you so much as breath on this script
 #.   #.2 But, er, don't sue me if blows up your computer and destroys all life as we know it
 #.   ...
-#. 
+#.
 #. ::
 #.   shelldoc -a1 < somescript > versions.txt
 #.   shelldoc -a2 < somescript > license.txt
@@ -422,7 +431,7 @@ done
 #.
 #.EXAMPLES
 #. The following processes the foo.sh script and produces a man page as foo.1
-#. 
+#.
 #.  ``cat foo.sh | shelldoc | rst2man.py > foo.1``
 #.
 #. The following processes the bar.sh script and produces a web page as bar.html
@@ -431,7 +440,7 @@ done
 #.
 #.SEE_ALSO
 #. docutils(1)
-#. 
+#.
 
 #.1 VERSION HISTORY
 #.1 0.3 - 20140307
@@ -443,19 +452,19 @@ done
 #.1  Initial release
 
 #.2 LICENSE
-#.2     
+#.2
 #.2 Copyright (c) 2014 Douglas Reed
-#.2     
+#.2
 #.2 Permission is hereby granted, free of charge, to any person obtaining a copy
 #.2 of this software and associated documentation files (the "Software"), to deal
 #.2 in the Software without restriction, including without limitation the rights
 #.2 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 #.2 copies of the Software, and to permit persons to whom the Software is
 #.2 furnished to do so, subject to the following conditions:
-#.2     
+#.2
 #.2 The above copyright notice and this permission notice shall be included in
 #.2 all copies or substantial portions of the Software.
-#.2     
+#.2
 #.2 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 #.2 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 #.2 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -463,4 +472,3 @@ done
 #.2 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 #.2 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 #.2 THE SOFTWARE.
-
