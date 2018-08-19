@@ -9,18 +9,19 @@
 #   \ shelldoc  ▒  /
 # ~~~~~~~~~~~~~~~~~~~~~~~
 
+# This script includes 'shelldoc' documentation - http://www.github.com/scripsi/shelldoc
 #.NAME        shelldoc
-#.SUMMARY     Shellscript Documentation System
+#.SUMMARY     Shell Script Documentation System
 #.AUTHOR      Douglas Reed
-#.DATE        March 2014
-#.VERSION     0.3
+#.DATE        August 2018
+#.VERSION     0.4
 #.MANSECTION  1
 #.MANGROUP    Text Processing
 #.
 #.SYNOPSIS
+#.
 #.   shelldoc [-t | -a *1-9* | -s]
 #.
-#. Typical Usage
 #.   shelldoc < *scriptfile* > *scriptdocumentation.rst*
 #.
 #.   shelldoc -t < *scriptfile* > *scriptfile-with-shelldoc-template*
@@ -32,9 +33,20 @@
 
 # Utility functions start here
 
-# Wraps a shell script with copperplate documentation
+# Experimenting with different options for outputting text
+# SHelldoc OUTput
+shout () {
+  echo "$@"
+  # printf '%s\n' "$@"
+}
+
+# Wraps a shell script with biolerplate documentation
 doaddtemplate () {
-# check if first line is a shebang
+  # Reset IFS to stop read from stripping leading spaces
+  OLDIFS="$IFS"
+  IFS=$'
+'
+  # check if first line is a shebang
   read inputline
   if [ "${inputline%${inputline#??}}" = "\#!" ]
   then
@@ -42,6 +54,7 @@ doaddtemplate () {
     inputline=""
   fi
 # now insert top of template
+  echo "# This script includes 'shelldoc' documentation - http://www.github.com/scripsi/shelldoc"
   echo "#.NAME        scriptname"
   echo "#.SUMMARY     one line description of script"
   echo "#.AUTHOR      Author Name"
@@ -75,19 +88,22 @@ doaddtemplate () {
   echo "#."
   echo "#.SEE_ALSO"
   echo "#. Related man pages"
+  # Put IFS back to normal
+  IFS="$OLDIFS"  
 }
 
 # Utility function to emit the text of appendix n
 doemitappendix () {
   # Reset IFS to stop read from stripping leading spaces
   OLDIFS="$IFS"
-  IFS=$'\n'
+  IFS=$'
+'
   # Scan through the input, only emitting lines that begin '#.n '
   while read inputline
   do
     if [ "${inputline%${inputline#????}}" = "#.${1} " ]
     then
-      echo "${inputline#????}"
+      shout "${inputline#????}"
     fi
   done
   # Put IFS back to normal
@@ -98,13 +114,14 @@ doemitappendix () {
 dostripshelldoc () {
   # Reset IFS to stop read from stripping leading spaces
   OLDIFS="$IFS"
-  IFS=$'\n'
+  IFS=$'
+'
   # scan through the input, ignoring lines starting with a shedot and emitting the rest
   while read inputline
   do
     if [ "${inputline%${inputline#??}}" != "#." ]
     then
-      echo "$inputline"
+      shout "$inputline"
     fi
   done
   # Put IFS back to normal
@@ -145,7 +162,7 @@ do
        echo "| Shellscript Documentation System |"
        echo "===================================="
        echo " "
-       echo "Usage: $0 [-t] [-a 1-9 ] < infile > outfile"
+       echo "Usage: $0 [-s] [-t] [-a 1-9 ] < infile > outfile"
        echo " "
        echo "For full documentation: $0 < $0"
        echo " "
@@ -159,13 +176,19 @@ done
 
 shift $((OPTIND - 1))
 
+optionindent=0
 # The core processing loop (perhaps I should learn sed...)
+# Reset IFS to stop read from stripping leading spaces
+OLDIFS="$IFS"
+IFS=$'
+'
 while read inputline
 do
   # Check the first 3 characters of the line
-  case "$inputline" in
+  inputlineprefix=$( echo "$inputline" | cut -c 1-3 )
+  case "$inputlineprefix" in
     # If the line starts #. and a letter then it must be a section header
-    \#.[a-zA-Z]* )
+    \#.[a-zA-Z] )
       # Extract the section name and convert it to uppercase
       sectionname="${inputline%% *}"
       sectionuname=$( echo "${sectionname#\#.}" | tr 'a-z' 'A-Z' )
@@ -237,17 +260,18 @@ do
         esac
     ;;
     # If the line starts with #.- it must be an option definition
-    \#.-* )
-      case "$inputline" in
+    \#.- )
+      inputlineprefixextension=$( echo "$inputline" | cut -c 4 )
+      case "$inputlineprefixextension" in
         # If the line starts with #.- and a letter, hyphen or question mark, it must be
         # the option itself
-        \#.-[a-zA-Z\?-]* )
+        [a-zA-Z\?-] )
           # Split out the components of the line
           optionname="${inputline%% *}"
           linedata="${inputline#$optionname}"
           # Trim the #. off the option name
           optionname="${optionname#\#.}"
-          optionlength=${#optionname}
+          optionlength="${#optionname}"
           # In the reStructuredText definition, options must be separated from their
           # descriptions by at least 2 spaces, hence the indent for subsequent lines
           # is the length of the option + 2
@@ -258,7 +282,7 @@ do
         ;;
         # If the line starts with #.- and whitespace it must be continuation of the option
         # definition, so we need to pad with the right amount of space
-        \#.-[[:blank:]]* )
+        [[:blank:]] )
           linedata="${inputline#\#.-}"
           # trim off leading white space
           linedata=$( echo "$linedata" | sed 's/^[ \t]*//' )
@@ -274,17 +298,19 @@ do
       esac
     ;;
     # If the line starts with #. and nothing else or whitespace it must be continuation
-    \#.[[:blank:]]* )
+    \#.[[:blank:]] )
       echo "${inputline#\#. }"
     ;;
     \#. )
-      echo
-    ;;
+       echo
+     ;;
     # Ignore anything else
     * )
     ;;
   esac
 done
+# Put IFS back to normal
+IFS="$OLDIFS"
 
 #.DESCRIPTION
 #. The shelldoc system provides a simple way to embed user documentation into Unix shell
@@ -316,13 +342,14 @@ done
 #.OPTIONS
 #. The script can be used with the following options:
 #.
-#.-t  Wraps an existing script with template documentation. In this mode, when
-#.-    passed some text on STDIN, it first reads the first line to check if it is a 'shebang'
-#.-    line (eg #! /bin/sh), and if so it echos this to STDOUT. It then emits a template set
-#.-    of the most important documentation parameters before echoing the rest of the input.
-#.-    Finally it appends the remaining documentation template to the output. The end result
-#.-    should be a working version of the original script with added documentation in the
-#.-    correct form, which you can then edit to your heart's content.
+#.-t
+#.- Wraps an existing script with template documentation. In this mode, when
+#.- passed some text on STDIN, it first reads the first line to check if it is a 'shebang'
+#.- line (eg #! /bin/sh), and if so it echos this to STDOUT. It then emits a template set
+#.- of the most important documentation parameters before echoing the rest of the input.
+#.- Finally it appends the remaining documentation template to the output. The end result
+#.- should be a working version of the original script with added documentation in the
+#.- correct form, which you can then edit to your heart's content.
 #.
 #.-s
 #.- Strips out all shelldoc lines from a script. In this mode, when passed some text
@@ -354,16 +381,17 @@ done
 #. A shedot that is followed by a space or a new line is interpreted as standard body
 #. text. So, for example::
 #.
-#.   #.Helpful_Description This is where we describe how the foo script works.
-#.   #. It uses a highly sophisticated method to turn any foo on STDIN into properly
-#.   #. formatted bar on STDOUT.
+#.   #.Helpful_Description
+#.   #. This is where we describe how the foo script works.
+#.   #. It uses a highly sophisticated method to turn any foo
+#.   #. on STDIN into properly formatted bar on STDOUT.
 #.
 #. becomes::
 #.
 #.   HELPFUL DESCRIPTION
-#.       This is where we describe how the foo script works. It uses a highly
-#.       sophisticated method to turn any foo on STDIN into properly formatted
-#.       bar on STDOUT.
+#.       This is where we describe how the foo script works.
+#.       It uses a highly sophisticated method to turn any foo
+#.       on STDIN into properly formatted bar on STDOUT.
 #.
 #. There are a few headings that are treated differently. These are essential if the
 #. eventual target will be a man page, but may also be desirable for other target formats.
@@ -381,17 +409,17 @@ done
 #. your script.
 #.
 #. Option descriptions have to be specially formatted to ensure the correct indentation. An
-#. option begins with '#.-' and a letter or hyphen. Any text after the first space is
-#. interpreted as the option description. Subsequent lines beginning '#.-' and a space
-#. are considered to be a continuation of the option description. For example::
+#. option begins with '#.-' and a letter or hyphen. Subsequent lines beginning '#.-' and
+#. a space are considered to be the option description. For example::
 #.
-#.   #.-p,--piffle Obfuscates the foo on STDIN so that it appears as complete
+#.   #.-p,--piffle
+#.   #.- Obfuscates the foo on STDIN so that it appears as complete
 #.   #.- gibberish on STDOUT.
 #.
 #. becomes::
 #.
-#.   -p,--piffle  Obfuscates the foo on STDIN so that it appears
-#.                as complete gibberish on STDOUT.
+#.   -p,--piffle   Obfuscates the foo on STDIN so that it appears
+#.                 as complete gibberish on STDOUT.
 #.
 #. A shedot that is immediately followed by a digit and a space is considered to be an
 #. "appendix" - the text of an additional file that can be extracted using the -a*n* shelldoc
@@ -400,8 +428,6 @@ done
 #. to generate the entire user documentation for a project from a single script file. For
 #. example::
 #.
-#.   <somescript>
-#.   ...
 #.   #.1 0.1
 #.   #.1  Initial bug-ridden release
 #.   #.1 0.2
@@ -411,64 +437,130 @@ done
 #.   #.1  Created lots of new bugs (sigh)
 #.   #.2 Copyright 2008 Joe Blogs
 #.   #.2
-#.   #.2 Please pay me lots of money whenever you so much as breath on this script
-#.   #.2 But, er, don't sue me if blows up your computer and destroys all life as we know it
-#.   ...
-#.
-#. ::
-#.   shelldoc -a1 < somescript > versions.txt
-#.   shelldoc -a2 < somescript > license.txt
+#.   #.2 Please pay me lots of money whenever you so much as
+#.   #.2 breath on this script. But, er, don't sue me if blows up
+#.   #.2 your computer and destroys all life as we know it
 #.
 #. You can use most reStructuredText commands to include special formatting in any shelldoc
 #. text. The most useful of these are:
 #.
-#.  + \\*emphasis\\* becomes *emphasis*
-#.  + \\**strong emphasis\\** becomes **strong emphasis**
-#.  + \\``inline literal\\`` becomes ``inline literal``
-#.  + An indented block of text preceeded by :: becomes a code block
+#.  * \\*emphasis\\* becomes *emphasis*
+#.  * \\**strong emphasis\\** becomes **strong emphasis**
+#.  * \\``inline literal\\`` becomes ``inline literal``
+#.  * An indented block of text preceeded by :: becomes a code block
 #.
 #. See the reStructuredText definition documents for more on these and other formatting tricks.
 #.
 #.EXAMPLES
-#. The following processes the foo.sh script and produces a man page as foo.1
+#.  * Process ``foo.sh`` and save the man page as ``foo.1``::
 #.
-#.  ``cat foo.sh | shelldoc | rst2man.py > foo.1``
+#.     shelldoc < foo.sh | rst2man > foo.1
 #.
-#. The following processes the bar.sh script and produces a web page as bar.html
+#.    or view the man page immediately (note the last hyphen after ``man -l`` telling man to get its input from STDIN)::
 #.
-#.  ``cat bar.sh | shelldoc | rst2html.py > bar.html``
+#.     shelldoc < foo.sh | rst2man | man -l -
+#.
+#.  * Process ``bar.sh`` and produce a web page as ``bar.html``::
+#.
+#.     shelldoc < bar.sh | rst2html > bar.html
+#.
+#.  * Process ``somescript`` and save appendix 1 as ``versions.txt`` and appendix 2 as ``license.txt``::
+#.
+#.     shelldoc -a1 < somescript > versions.txt
+#.     shelldoc -a2 < somescript > license.txt
 #.
 #.SEE_ALSO
 #. docutils(1)
 #.
 
-#.1 VERSION HISTORY
-#.1 0.3 - 20140307
-#.1  Spit and polish before releasing on GitHub
-#.1 0.2 - 20080624
-#.1  Added appendix function for including other text files as part of the documentation set
-#.1  Used new appendix feature to add version history and license
-#.1 0.1 - 20080422
-#.1  Initial release
 
-#.2 LICENSE
-#.2
-#.2 Copyright (c) 2014 Douglas Reed
-#.2
-#.2 Permission is hereby granted, free of charge, to any person obtaining a copy
-#.2 of this software and associated documentation files (the "Software"), to deal
-#.2 in the Software without restriction, including without limitation the rights
-#.2 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-#.2 copies of the Software, and to permit persons to whom the Software is
-#.2 furnished to do so, subject to the following conditions:
-#.2
-#.2 The above copyright notice and this permission notice shall be included in
-#.2 all copies or substantial portions of the Software.
-#.2
-#.2 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-#.2 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-#.2 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-#.2 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-#.2 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-#.2 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-#.2 THE SOFTWARE.
+#.1 MIT License
+#.1 
+#.1 Copyright (c) 2018 Douglas Reed
+#.1 
+#.1 Permission is hereby granted, free of charge, to any person obtaining a copy
+#.1 of this software and associated documentation files (the "Software"), to deal
+#.1 in the Software without restriction, including without limitation the rights
+#.1 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+#.1 copies of the Software, and to permit persons to whom the Software is
+#.1 furnished to do so, subject to the following conditions:
+#.1 
+#.1 The above copyright notice and this permission notice shall be included in all
+#.1 copies or substantial portions of the Software.
+#.1 
+#.1 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+#.1 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+#.1 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+#.1 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+#.1 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+#.1 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+#.1 SOFTWARE.
+
+
+#.2 VERSION HISTORY
+#.2 0.4 - 20180819
+#.2  Bug fixes and improving documentation
+#.2 0.3 - 20140307
+#.2  Spit and polish before releasing on GitHub
+#.2 0.2 - 20080624
+#.2  Added appendix function for including other text files as part of the documentation set
+#.2  Used new appendix feature to add version history and license
+#.2 0.1 - 20080422
+#.2  Initial release
+
+
+#.3
+#.3 # shelldoc
+#.3
+#.3 A shell script documentation system
+#.3
+#.3 ```
+#.3                 __
+#.3                ▓#.▓▒
+#.3               ▓▓▓▓▒▒▒▒
+#.3               ▓▓▓
+#.3  ___/▓▓▓▓▓▓▓▒▒   ▏
+#.3 <           ▒▒   ▏
+#.3  \ shelldoc  ▒  /
+#.3 ~~~~~~~~~~~~~~~~~~~~~~~
+#.3 ```
+#.3 
+#.3 The _shelldoc_ system provides a simple way to embed user documentation into Unix shell scripts. _shelldoc_ is a Bourne shell compatible script that searches for specially formatted comments in text input (usually a Unix script file) on STDIN which are then emitted as the user documentation in reStructuredText format on STDOUT. All other code and standard comments within the source text are quietly ignored.
+#.3 
+#.3 reStructuredText is a very lightweight form of markup that does not interfere with the human readability of the text. The [Docutils](http://docutils.sourceforge.net) project defnes the standard and provides filters to convert reStructuredText into html, latex (and on to PDF), and man format. Thus the same shelldoc documentation comments within a script can be extracted into a text file, a web page, a man page or a PDF file, covering all the main forms of electronic documentation.
+#.3 
+#.3 Other text documentation, such as README files, licenses and version histories can also be included in the source text as numbered appendices. This makes it possible to maintain and distrubute a single script file that contains all of its necessary user documentation.
+#.3 
+#.3 The _shelldoc_ script file serves as full documentation, a "feature-complete" test of the shelldoc system and an example for usage of all features of the shelldoc syntax.
+#.3 
+#.3 ## Installation and use
+#.3 
+#.3 Download the [shelldoc](https://github.com/scripsi/shelldoc/raw/master/shelldoc) script file and save it somewhere in your $PATH, for example `~/bin/shelldoc`, then make sure that it is executable: `chmod +x ~/bin/shelldoc`
+#.3 
+#.3 Then you can try the following commands to see how it works:
+#.3 
+#.3 ```
+#.3 # print shelldoc's documentation to the terminal:
+#.3 shelldoc < shelldoc
+#.3 # or view it as a manual page (requires Docutils):
+#.3 shelldoc < shelldoc | rst2man | man -l -
+#.3 # or save it as a web page (requires Docutils):
+#.3 shelldoc < shelldoc | rst2html | shelldoc.html
+#.3 # or save it as a plain text file:
+#.3 shelldoc < shelldoc > shelldoc.txt
+#.3 # view the licence:
+#.3 shelldoc -a 1 < shelldoc
+#.3 # save the version history:
+#.3 shelldoc -a 2 < shelldoc > versions.txt
+#.3 # save this readme file:
+#.3 shelldoc -a 3 < shelldoc > README.md
+#.3 # add a documentation template to another script:
+#.3 shelldoc -t < myscript > mydocumentedscript
+#.3 # strip documentation from a script:
+#.3 shelldoc -s < mydocumentedscript > mycleanscript
+#.3 ```
+#.3 
+#.3 ## Colophon
+#.3 
+#.3 The mascot of shelldoc is a Shelduck -- _Tadorna tadorna_ (_Linnaeus_, 1758) -- a large and colourful duck found mainly in coastal areas across Eurasia. It nests in rabbit burrows or tree holes. The hatchlings leave the nest quickly and are led by their parents to nurseries on ponds lakes or rivers, often up to a mile away. There, they join other broods to form crêches of up to 100 young birds. A small number of adults stay behind to watch over these youngsters, while most of the parents fly off to join huge moulting flocks in coastal waters. These moulting flocks can contain many thousands of birds and are a spectacular sight on the Dutch and German Northern coast, as well as smaller gatherings on the Wash in England and the Firth of Forth in Scotland.
+
