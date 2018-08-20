@@ -1,5 +1,8 @@
+
 # shelldoc
+
 A shell script documentation system
+
 ```
                 __
                ▓#.▓▒
@@ -7,12 +10,13 @@ A shell script documentation system
               ▓▓▓
  ___/▓▓▓▓▓▓▓▒▒   ▏
 <           ▒▒   ▏
-  shelldoc  ▒  /
+ \ shelldoc  ▒  /
 ~~~~~~~~~~~~~~~~~~~~~~~
 ```
 
 The _shelldoc_ system provides a simple way to embed user documentation into Unix shell scripts. _shelldoc_ is a Bourne shell compatible script that searches for specially formatted comments in text input (usually a Unix script file) on STDIN which are then emitted as the user documentation in reStructuredText format on STDOUT. All other code and standard comments within the source text are quietly ignored.
 
+reStructuredText is a very lightweight form of markup that does not interfere with the human readability of the text. The [Docutils](http://docutils.sourceforge.net) project defnes the standard and provides filters to convert reStructuredText into html, latex (and on to PDF), and man format. Thus the same shelldoc documentation comments within a script can be extracted into a text file, a web page, a man page or a PDF file, covering all the main forms of electronic documentation.
 
 Other text documentation, such as README files, licenses and version histories can also be included in the source text as numbered appendices. This makes it possible to maintain and distrubute a single script file that contains all of its necessary user documentation.
 
@@ -20,6 +24,17 @@ The _shelldoc_ script file serves as full documentation, a "feature-complete" te
 
 ## Installation and use
 
+Download the [shelldoc](https://github.com/scripsi/shelldoc/raw/master/shelldoc) script file and save it somewhere in your $PATH, for example:
+
+```
+~/bin/shelldoc
+```
+
+then make sure that it is executable:
+
+```
+chmod +x ~/bin/shelldoc
+```
 
 Then you can try the following commands to see how it works:
 

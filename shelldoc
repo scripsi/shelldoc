@@ -37,7 +37,6 @@
 # SHelldoc OUTput
 shout () {
   echo "$@"
-  # printf '%s\n' "$@"
 }
 
 # Wraps a shell script with biolerplate documentation
@@ -47,7 +46,7 @@ doaddtemplate () {
   IFS=$'
 '
   # check if first line is a shebang
-  read inputline
+  read -r inputline
   if [ "${inputline%${inputline#??}}" = "\#!" ]
   then
     echo "$inputline"
@@ -71,7 +70,7 @@ doaddtemplate () {
   then
     echo "$inputline"
   fi
-  while read inputline
+  while read -r inputline
   do
     echo "$inputline"
   done
@@ -99,9 +98,19 @@ doemitappendix () {
   IFS=$'
 '
   # Scan through the input, only emitting lines that begin '#.n '
-  while read inputline
+  while read -r inputline
   do
-    if [ "${inputline%${inputline#????}}" = "#.${1} " ]
+    contentmask=
+    contentlength="${#inputline}"
+    contentlength=$((contentlength-4))
+    i=0
+    while [ $i -lt $contentlength ]
+    do
+      contentmask="?$contentmask"
+      i=$((i+1))
+    done
+    inputlineprefix="${inputline%${contentmask}}"
+    if [ "$inputlineprefix" = "#.${1} " ]
     then
       shout "${inputline#????}"
     fi
@@ -117,9 +126,19 @@ dostripshelldoc () {
   IFS=$'
 '
   # scan through the input, ignoring lines starting with a shedot and emitting the rest
-  while read inputline
+  while read -r inputline
   do
-    if [ "${inputline%${inputline#??}}" != "#." ]
+    contentmask=
+    contentlength="${#inputline}"
+    contentlength=$((contentlength-2))
+    i=0
+    while [ $i -lt $contentlength ]
+    do
+      contentmask="?$contentmask"
+      i=$((i+1))
+    done
+    inputlineprefix="${inputline%${contentmask}}"
+    if [ "$inputlineprefix" != "#." ]
     then
       shout "$inputline"
     fi
@@ -182,7 +201,7 @@ optionindent=0
 OLDIFS="$IFS"
 IFS=$'
 '
-while read inputline
+while read -r inputline
 do
   # Check the first 3 characters of the line
   inputlineprefix=$( echo "$inputline" | cut -c 1-3 )
@@ -360,7 +379,7 @@ IFS="$OLDIFS"
 #.- Emits appendix *n* from a script, where *n*=1-9. In this mode, when passed some text
 #.- on STDIN, it emits only lines beginning with '#.' followed by *n* and a space. This
 #.- allows you to include other documentation text files as "appendices" to the script.
-#.- For example, I usually include the version history as appendix 1 and the license as
+#.- For example, I usually include the license as appendix 1 and the version history as
 #.- appendix 2. See SHELLDOC SYNTAX below for more information.
 #.
 #.-h
@@ -495,8 +514,7 @@ IFS="$OLDIFS"
 #.1 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 #.1 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #.1 SOFTWARE.
-
-
+ 
 #.2 VERSION HISTORY
 #.2 0.4 - 20180819
 #.2  Bug fixes and improving documentation
@@ -509,11 +527,11 @@ IFS="$OLDIFS"
 #.2  Initial release
 
 
-#.3
+#.3 
 #.3 # shelldoc
-#.3
+#.3 
 #.3 A shell script documentation system
-#.3
+#.3 
 #.3 ```
 #.3                 __
 #.3                ▓#.▓▒
@@ -535,7 +553,17 @@ IFS="$OLDIFS"
 #.3 
 #.3 ## Installation and use
 #.3 
-#.3 Download the [shelldoc](https://github.com/scripsi/shelldoc/raw/master/shelldoc) script file and save it somewhere in your $PATH, for example `~/bin/shelldoc`, then make sure that it is executable: `chmod +x ~/bin/shelldoc`
+#.3 Download the [shelldoc](https://github.com/scripsi/shelldoc/raw/master/shelldoc) script file and save it somewhere in your $PATH, for example:
+#.3 
+#.3 ```
+#.3 ~/bin/shelldoc
+#.3 ```
+#.3 
+#.3 then make sure that it is executable:
+#.3 
+#.3 ```
+#.3 chmod +x ~/bin/shelldoc
+#.3 ```
 #.3 
 #.3 Then you can try the following commands to see how it works:
 #.3 
@@ -563,4 +591,3 @@ IFS="$OLDIFS"
 #.3 ## Colophon
 #.3 
 #.3 The mascot of shelldoc is a Shelduck -- _Tadorna tadorna_ (_Linnaeus_, 1758) -- a large and colourful duck found mainly in coastal areas across Eurasia. It nests in rabbit burrows or tree holes. The hatchlings leave the nest quickly and are led by their parents to nurseries on ponds lakes or rivers, often up to a mile away. There, they join other broods to form crêches of up to 100 young birds. A small number of adults stay behind to watch over these youngsters, while most of the parents fly off to join huge moulting flocks in coastal waters. These moulting flocks can contain many thousands of birds and are a spectacular sight on the Dutch and German Northern coast, as well as smaller gatherings on the Wash in England and the Firth of Forth in Scotland.
-

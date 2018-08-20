@@ -1,7 +1,9 @@
 VERSION HISTORY
+0.4 - 20180819
+ Bug fixes and improving documentation
+0.3 - 20140307
  Spit and polish before releasing on GitHub
 0.2 - 20080624
-0.3 - 20140307
  Added appendix function for including other text files as part of the documentation set
  Used new appendix feature to add version history and license
 0.1 - 20080422
