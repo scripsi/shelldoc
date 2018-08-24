@@ -47,7 +47,17 @@ doaddtemplate () {
 '
   # check if first line is a shebang
   read -r inputline
-  if [ "${inputline%${inputline#??}}" = "\#!" ]
+  contentmask=
+  contentlength="${#inputline}"
+  contentlength=$((contentlength-2))
+  i=0
+  while [ $i -lt $contentlength ]
+  do
+    contentmask="?$contentmask"
+    i=$((i+1))
+  done
+  inputlineprefix="${inputline%${contentmask}}"
+  if [ "$inputlineprefix" = "#!" ]
   then
     echo "$inputline"
     inputline=""
